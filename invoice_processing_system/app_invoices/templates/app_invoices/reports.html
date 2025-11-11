@@ -1,0 +1,305 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Báo cáo - InvoiceFlow{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-semibold text-gray-800">📈 Báo cáo & Phân tích</h2>
+        <p class="text-gray-600 mt-1">Thống kê hiệu suất hệ thống và phân tích dữ liệu</p>
+    </div>
+    <div class="flex space-x-2">
+        <button id="exportReportBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+            📥 Xuất báo cáo
+        </button>
+        <button id="refreshReportBtn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md shadow-md">
+            🔄 Làm mới
+        </button>
+    </div>
+</header>
+
+<!-- Report Filters -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">🔍 Bộ lọc báo cáo</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label for="dateFrom" class="block text-gray-700 text-sm font-bold mb-2">Từ ngày:</label>
+            <input type="date" id="dateFrom" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+        <div>
+            <label for="dateTo" class="block text-gray-700 text-sm font-bold mb-2">Đến ngày:</label>
+            <input type="date" id="dateTo" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+        <div>
+            <label for="supplierFilter" class="block text-gray-700 text-sm font-bold mb-2">Nhà cung cấp:</label>
+            <select id="supplierFilter" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">Tất cả nhà cung cấp</option>
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button id="applyFiltersBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+                Áp dụng bộ lọc
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Tỷ lệ khớp tự động</h3>
+                <p class="text-3xl font-bold text-green-600 mt-1" id="autoMatchRate">0%</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Thời gian xử lý TB</h3>
+                <p class="text-3xl font-bold text-blue-600 mt-1" id="avgProcessingTime">0s</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Độ chính xác OCR</h3>
+                <p class="text-3xl font-bold text-yellow-600 mt-1" id="ocrAccuracy">0%</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-red-100">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Tỷ lệ lỗi tích hợp</h3>
+                <p class="text-3xl font-bold text-red-600 mt-1" id="integrationErrorRate">0%</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">📊 Tỷ lệ khớp theo thời gian</h3>
+        <div class="h-64">
+            <canvas id="matchRateOverTimeChart"></canvas>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">🏭 Hiệu suất theo nhà cung cấp</h3>
+        <div class="h-64">
+            <canvas id="supplierPerformanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Reports -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">📋 Chi tiết xử lý hóa đơn</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tháng</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng HD</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đã khớp</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tự động</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tỷ lệ</th>
+                    </tr>
+                </thead>
+                <tbody id="monthlyReportTable" class="bg-white divide-y divide-gray-200">
+                    <tr><td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">Đang tải báo cáo...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">⚠️ Nhà cung cấp có vấn đề</h3>
+        <div class="space-y-4">
+            <div id="supplierErrorList" class="text-sm">
+                <div class="text-center py-8 text-gray-500">Đang tải dữ liệu...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    // 🔔 Hiển thị thông báo gọn gàng
+    function showNotification(message, type = "info") {
+        const color = type === "error" ? "red" : (type === "success" ? "green" : "blue");
+        const notif = document.createElement("div");
+        notif.className = `fixed top-5 right-5 bg-${color}-500 text-white px-4 py-2 rounded shadow-lg z-50`;
+        notif.innerText = message;
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), 3000);
+    }
+
+    let matchRateChart, supplierChart;
+
+    async function updateKeyMetrics() {
+        try {
+            const res = await fetch("/api/reports/summary/");
+            const data = await res.json();
+            document.getElementById("autoMatchRate").innerText = data.auto_match_rate + "%";
+            document.getElementById("ocrAccuracy").innerText = data.ocr_accuracy + "%";
+            document.getElementById("avgProcessingTime").innerText = data.avg_processing_time + "s";
+            document.getElementById("integrationErrorRate").innerText = data.integration_error_rate + "%";
+        } catch (error) {
+            console.error("Lỗi khi tải tóm tắt:", error);
+        }
+    }
+
+    async function loadReportData() {
+        try {
+            const matchRateResponse = await fetch('/api/reports/match-rate/');
+            const matchRateData = await matchRateResponse.json();
+            const supplierResponse = await fetch('/api/reports/supplier-performance/');
+            const supplierData = await supplierResponse.json();
+
+            await updateKeyMetrics();
+            renderMatchRateChart(matchRateData);
+            renderSupplierChart(supplierData);
+            renderMonthlyTable(matchRateData);
+            renderSupplierErrors(supplierData);
+
+        } catch (error) {
+            console.error('Error loading report data:', error);
+            showNotification('Lỗi khi tải dữ liệu báo cáo.', 'error');
+        }
+    }
+
+    function renderMatchRateChart(data) {
+        const ctx = document.getElementById('matchRateOverTimeChart').getContext('2d');
+        if (matchRateChart) matchRateChart.destroy();
+        matchRateChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(item => new Date(item.month).toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' })),
+                datasets: [{
+                    label: 'Tỷ lệ khớp tự động (%)',
+                    data: data.map(item => ((item.auto_matched / item.total) * 100).toFixed(1)),
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 100 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function renderSupplierChart(data) {
+        const ctx = document.getElementById('supplierPerformanceChart').getContext('2d');
+        if (supplierChart) supplierChart.destroy();
+        supplierChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.supplier__name),
+                datasets: [{
+                    label: 'Số lỗi tích hợp',
+                    data: data.map(item => item.error_count),
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+    }
+
+    function renderMonthlyTable(data) {
+        const tableBody = document.getElementById('monthlyReportTable');
+        tableBody.innerHTML = '';
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            const matchRate = item.total > 0 ? ((item.matched / item.total) * 100).toFixed(1) : 0;
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    ${new Date(item.month).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.total}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.matched}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.auto_matched}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${matchRate}%</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    function renderSupplierErrors(data) {
+        const list = document.getElementById('supplierErrorList');
+        list.innerHTML = '';
+        if (data.length > 0) {
+            data.forEach(supplier => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-3 bg-red-50 rounded-md border-l-4 border-red-400';
+                item.innerHTML = `
+                    <div>
+                        <p class="font-medium text-red-800">${supplier.supplier__name}</p>
+                        <p class="text-sm text-red-700">${supplier.error_count} lỗi tích hợp</p>
+                    </div>
+                    <span class="text-sm font-medium text-red-600">${(supplier.error_count * 100 / 10).toFixed(1)}%</span>
+                `;
+                list.appendChild(item);
+            });
+        } else {
+            list.innerHTML = '<div class="text-center py-8 text-gray-500"><p>✅ Không có nhà cung cấp nào có lỗi tích hợp đáng kể.</p></div>';
+        }
+    }
+
+    // 🎯 Sự kiện nút
+    document.getElementById('refreshReportBtn').addEventListener('click', loadReportData);
+    document.getElementById('exportReportBtn').addEventListener('click', () => {
+        showNotification('Tính năng xuất báo cáo sẽ được triển khai trong phiên bản tiếp theo.', 'info');
+    });
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+        showNotification('Bộ lọc báo cáo sẽ được áp dụng trong phiên bản tiếp theo.', 'info');
+    });
+
+    // 🚀 Tải dữ liệu khi mở trang
+    loadReportData();
+});
+</script>
+{% endblock %}

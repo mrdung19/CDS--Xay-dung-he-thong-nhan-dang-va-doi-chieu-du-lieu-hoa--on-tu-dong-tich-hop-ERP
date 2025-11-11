@@ -1,0 +1,457 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Cài đặt ERP - InvoiceFlow{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-semibold text-gray-800">⚙️ Cài đặt ERP</h2>
+        <p class="text-gray-600 mt-1">Cấu hình tích hợp với hệ thống ERP</p>
+    </div>
+    <button id="addErpConfigBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+        ➕ Thêm Cấu hình ERP
+    </button>
+</header>
+
+<!-- ERP Configuration List -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">📋 Danh sách Cấu hình ERP</h3>
+    <div id="erpConfigList" class="space-y-4">
+        <div class="text-center py-8 text-gray-500">
+            <p>Đang tải cấu hình ERP...</p>
+        </div>
+    </div>
+</div>
+
+<!-- ERP Configuration Form Modal -->
+<div id="erpConfigModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold" id="modalTitle">Thêm Cấu hình ERP</h3>
+            <button id="closeErpModalBtn" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="erpConfigForm">
+            {% csrf_token %}
+            <input type="hidden" id="configId" name="id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label for="configName" class="block text-gray-700 text-sm font-bold mb-2">Tên cấu hình ERP:</label>
+                    <input type="text" id="configName" name="name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Ví dụ: SAP Production" required>
+                </div>
+                <div>
+                    <label for="erpType" class="block text-gray-700 text-sm font-bold mb-2">Loại ERP:</label>
+                    <select id="erpType" name="erp_type" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="SAP">SAP</option>
+                        <option value="Odoo">Odoo</option>
+                        <option value="QuickBooks">QuickBooks</option>
+                        <option value="Custom">Hệ thống tùy chỉnh</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="apiEndpoint" class="block text-gray-700 text-sm font-bold mb-2">Endpoint API ERP:</label>
+                <input type="url" id="apiEndpoint" name="api_endpoint" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="https://your-erp.com/api/v1" required>
+                <p class="text-xs text-gray-500 mt-1">URL endpoint để gửi dữ liệu hóa đơn đến hệ thống ERP</p>
+            </div>
+            
+            <div class="mb-4">
+                <label for="apiKey" class="block text-gray-700 text-sm font-bold mb-2">API Key (nếu có):</label>
+                <input type="password" id="apiKey" name="api_key" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Nhập API Key của ERP">
+                <p class="text-xs text-gray-500 mt-1">Khóa xác thực để kết nối với API ERP (tùy chọn)</p>
+            </div>
+            
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" id="autoPost" name="auto_post_on_match" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <span class="ml-2 text-sm text-gray-700">Tự động tích hợp khi hóa đơn được khớp</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1">Khi được kích hoạt, hệ thống sẽ tự động gửi hóa đơn đã khớp vào ERP mà không cần phê duyệt thủ công</p>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">Ánh xạ trường dữ liệu (OCR → ERP):</label>
+                <div id="fieldMapping" class="space-y-2">
+                    <div class="flex space-x-2">
+                        <input type="text" class="ocr-field flex-1 p-2 border rounded" placeholder="Tên trường OCR (ví dụ: invoice_number)">
+                        <span class="text-gray-500 self-center">→</span>
+                        <input type="text" class="erp-field flex-1 p-2 border rounded" placeholder="Tên trường ERP (ví dụ: erp_invoice_no)">
+                        <button type="button" class="remove-mapping bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm">×</button>
+                    </div>
+                </div>
+                <button type="button" id="addMappingRow" class="mt-2 text-indigo-600 hover:text-indigo-500 text-sm">➕ Thêm ánh xạ trường</button>
+                <p class="text-xs text-gray-500 mt-1">Định nghĩa cách ánh xạ dữ liệu từ OCR sang các trường trong hệ thống ERP</p>
+            </div>
+            
+            <div class="flex justify-end space-x-2">
+                <button type="button" id="cancelErpConfigBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded">❌ Hủy</button>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">💾 Lưu Cấu hình</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- System Settings Section -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">⚙️ Cài đặt Hệ thống</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+            <h4 class="text-lg font-medium text-gray-700">🔧 Cài đặt OCR</h4>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Tự động OCR khi upload</label>
+                    <input type="checkbox" id="autoOcrEnabled" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">OCR ngôn ngữ tiếng Việt</label>
+                    <input type="checkbox" id="vietnameseOcr" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Chất lượng OCR cao</label>
+                    <input type="checkbox" id="highQualityOcr" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                </div>
+            </div>
+        </div>
+        
+        <div class="space-y-4">
+            <h4 class="text-lg font-medium text-gray-700">🤖 Cài đặt AI</h4>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">AI phân loại tự động</label>
+                    <input type="checkbox" id="aiAutoClassification" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">AI phát hiện fraud</label>
+                    <input type="checkbox" id="aiFraudDetection" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">AI dự đoán thông minh</label>
+                    <input type="checkbox" id="aiPrediction" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-6 flex justify-end space-x-3">
+        <button id="saveSystemSettings" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+            💾 Lưu cài đặt
+        </button>
+        <button id="resetSystemSettings" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md shadow-md">
+            🔄 Đặt lại mặc định
+        </button>
+    </div>
+</div>
+
+<!-- Notification Settings -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">🔔 Cài đặt Thông báo</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+            <h4 class="text-lg font-medium text-gray-700">📧 Email Notifications</h4>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Thông báo khi có nhiệm vụ mới</label>
+                    <input type="checkbox" id="emailNewTasks" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Thông báo khi hóa đơn quá hạn</label>
+                    <input type="checkbox" id="emailOverdue" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Thông báo khi có lỗi hệ thống</label>
+                    <input type="checkbox" id="emailSystemErrors" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+            </div>
+        </div>
+        
+        <div class="space-y-4">
+            <h4 class="text-lg font-medium text-gray-700">🔔 In-App Notifications</h4>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Thông báo real-time</label>
+                    <input type="checkbox" id="realtimeNotifications" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Âm thanh thông báo</label>
+                    <input type="checkbox" id="soundNotifications" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-gray-700">Desktop notifications</label>
+                    <input type="checkbox" id="desktopNotifications" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matching Rules Section -->
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">⚖️ Quy tắc Đối chiếu Nâng cao</h3>
+    <div class="flex justify-between items-center mb-4">
+        <p class="text-gray-600">Cấu hình các quy tắc để tự động đánh giá độ khớp của hóa đơn</p>
+        <button id="addMatchingRuleBtn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md shadow-md text-sm">
+            ➕ Thêm Quy tắc
+        </button>
+    </div>
+    <div id="matchingRulesList" class="space-y-4">
+        <div class="text-center py-8 text-gray-500">
+            <p>Đang tải quy tắc đối chiếu...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Load ERP Configurations
+    async function loadErpConfigurations() {
+        try {
+            const response = await fetch('/api/erp-configs/');
+            const configs = await response.json();
+            
+            const configList = document.getElementById('erpConfigList');
+            configList.innerHTML = '';
+
+            if (configs.results && configs.results.length > 0) {
+                configs.results.forEach(config => {
+                    const configDiv = document.createElement('div');
+                    configDiv.className = 'border rounded-lg p-4 hover:bg-gray-50';
+                    configDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">${config.name}</h4>
+                                <p class="text-sm text-gray-600">${config.erp_type}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${config.auto_post_on_match ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                    ${config.auto_post_on_match ? 'Tự động' : 'Thủ công'}
+                                </span>
+                                <button onclick="editErpConfig(${config.id})" class="text-indigo-600 hover:text-indigo-900 text-sm">Sửa</button>
+                                <button onclick="deleteErpConfig(${config.id})" class="text-red-600 hover:text-red-900 text-sm">Xóa</button>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600 mb-2">
+                            <p><strong>Endpoint:</strong> ${config.api_endpoint}</p>
+                            ${config.api_key ? '<p><strong>API Key:</strong> ••••••••••</p>' : ''}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <p><strong>Ánh xạ trường:</strong> ${Object.keys(config.field_mapping).length} trường</p>
+                        </div>
+                    `;
+                    configList.appendChild(configDiv);
+                });
+            } else {
+                configList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>Chưa có cấu hình ERP nào. Hãy thêm cấu hình đầu tiên!</p></div>';
+            }
+        } catch (error) {
+            console.error('Error loading ERP configurations:', error);
+            document.getElementById('erpConfigList').innerHTML = '<div class="text-center py-8 text-red-500">Lỗi khi tải cấu hình ERP.</div>';
+        }
+    }
+
+    // Load Matching Rules
+    async function loadMatchingRules() {
+        try {
+            const response = await fetch('/api/matching-rules/');
+            const rules = await response.json();
+            
+            const rulesList = document.getElementById('matchingRulesList');
+            rulesList.innerHTML = '';
+
+            if (rules.results && rules.results.length > 0) {
+                rules.results.forEach(rule => {
+                    const ruleDiv = document.createElement('div');
+                    ruleDiv.className = 'border rounded-lg p-4 hover:bg-gray-50';
+                    ruleDiv.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">${rule.name}</h4>
+                                <p class="text-sm text-gray-600">Ưu tiên: ${rule.priority}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${rule.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                    ${rule.is_active ? 'Kích hoạt' : 'Tắt'}
+                                </span>
+                                <button onclick="toggleRule(${rule.id}, ${!rule.is_active})" class="text-${rule.is_active ? 'green' : 'gray'}-600 hover:text-${rule.is_active ? 'green' : 'gray'}-900 text-sm">
+                                    ${rule.is_active ? 'Tắt' : 'Bật'}
+                                </button>
+                                <button onclick="editMatchingRule(${rule.id})" class="text-indigo-600 hover:text-indigo-900 text-sm">Sửa</button>
+                                <button onclick="deleteMatchingRule(${rule.id})" class="text-red-600 hover:text-red-900 text-sm">Xóa</button>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <pre class="bg-gray-50 p-2 rounded text-xs overflow-x-auto">${JSON.stringify(rule.rule_definition, null, 2)}</pre>
+                        </div>
+                    `;
+                    rulesList.appendChild(ruleDiv);
+                });
+            } else {
+                rulesList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>Chưa có quy tắc đối chiếu nào. Hãy thêm quy tắc đầu tiên!</p></div>';
+            }
+        } catch (error) {
+            console.error('Error loading matching rules:', error);
+            document.getElementById('matchingRulesList').innerHTML = '<div class="text-center py-8 text-red-500">Lỗi khi tải quy tắc đối chiếu.</div>';
+        }
+    }
+
+    // ERP Configuration Modal
+    document.getElementById('addErpConfigBtn').addEventListener('click', () => openErpConfigModal());
+    
+    function openErpConfigModal(configId = null) {
+        const modal = document.getElementById('erpConfigModal');
+        const form = document.getElementById('erpConfigForm');
+        const title = document.getElementById('modalTitle');
+        
+        form.reset();
+        document.getElementById('configId').value = '';
+        
+        if (configId) {
+            title.innerText = 'Sửa Cấu hình ERP';
+            loadErpConfigForEdit(configId);
+        } else {
+            title.innerText = 'Thêm Cấu hình ERP';
+        }
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    async function loadErpConfigForEdit(configId) {
+        try {
+            const response = await fetch(`/api/erp-configs/${configId}/`);
+            const config = await response.json();
+            
+            document.getElementById('configId').value = config.id;
+            document.getElementById('configName').value = config.name;
+            document.getElementById('erpType').value = config.erp_type;
+            document.getElementById('apiEndpoint').value = config.api_endpoint;
+            document.getElementById('apiKey').value = config.api_key || '';
+            document.getElementById('autoPost').checked = config.auto_post_on_match;
+            
+            // Load field mapping
+            loadFieldMapping(config.field_mapping);
+        } catch (error) {
+            console.error('Error loading ERP config for edit:', error);
+            showNotification('Lỗi khi tải cấu hình ERP để chỉnh sửa.', 'error');
+        }
+    }
+
+    function loadFieldMapping(mapping) {
+        const mappingContainer = document.getElementById('fieldMapping');
+        mappingContainer.innerHTML = '';
+
+        for (const [ocrField, erpField] of Object.entries(mapping)) {
+            addMappingRow(ocrField, erpField);
+        }
+    }
+
+    function addMappingRow(ocrValue = '', erpValue = '') {
+        const mappingContainer = document.getElementById('fieldMapping');
+        const row = document.createElement('div');
+        row.className = 'flex space-x-2 mb-2';
+        row.innerHTML = `
+            <input type="text" class="ocr-field flex-1 p-2 border rounded" placeholder="Tên trường OCR" value="${ocrValue}">
+            <span class="text-gray-500 self-center">→</span>
+            <input type="text" class="erp-field flex-1 p-2 border rounded" placeholder="Tên trường ERP" value="${erpValue}">
+            <button type="button" class="remove-mapping bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded text-sm">×</button>
+        `;
+        mappingContainer.appendChild(row);
+
+        // Add remove event listener
+        row.querySelector('.remove-mapping').addEventListener('click', () => {
+            row.remove();
+        });
+    }
+
+    document.getElementById('addMappingRow').addEventListener('click', () => {
+        addMappingRow();
+    });
+
+    // Form submission
+    document.getElementById('erpConfigForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const configId = formData.get('id');
+        const url = configId ? `/api/erp-configs/${configId}/` : '/api/erp-configs/';
+        const method = configId ? 'PUT' : 'POST';
+        
+        // Collect field mapping
+        const mappingRows = document.querySelectorAll('#fieldMapping .flex');
+        const fieldMapping = {};
+        mappingRows.forEach(row => {
+            const ocrField = row.querySelector('.ocr-field').value.trim();
+            const erpField = row.querySelector('.erp-field').value.trim();
+            if (ocrField && erpField) {
+                fieldMapping[ocrField] = erpField;
+            }
+        });
+        
+        const payload = {
+            name: formData.get('name'),
+            erp_type: formData.get('erp_type'),
+            api_endpoint: formData.get('api_endpoint'),
+            api_key: formData.get('api_key'),
+            auto_post_on_match: formData.get('auto_post_on_match') === 'on',
+            field_mapping: fieldMapping
+        };
+        
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF_TOKEN,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (response.ok) {
+                showNotification(`Cấu hình ERP đã được ${configId ? 'cập nhật' : 'tạo'} thành công!`);
+                document.getElementById('erpConfigModal').classList.add('hidden');
+                document.getElementById('erpConfigModal').classList.remove('flex');
+                loadErpConfigurations(); // Refresh list
+            } else {
+                const error = await response.json();
+                showNotification(error.error || `Lỗi khi ${configId ? 'cập nhật' : 'tạo'} cấu hình ERP.`, 'error');
+            }
+        } catch (error) {
+            showNotification(`Lỗi mạng: ${error.message}`, 'error');
+            console.error('Error saving ERP config:', error);
+        }
+    });
+
+    // Modal controls
+    document.getElementById('closeErpModalBtn').addEventListener('click', () => {
+        document.getElementById('erpConfigModal').classList.add('hidden');
+        document.getElementById('erpConfigModal').classList.remove('flex');
+    });
+
+    document.getElementById('cancelErpConfigBtn').addEventListener('click', () => {
+        document.getElementById('erpConfigModal').classList.add('hidden');
+        document.getElementById('erpConfigModal').classList.remove('flex');
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('erpConfigModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+            e.currentTarget.classList.add('hidden');
+            e.currentTarget.classList.remove('flex');
+        }
+    });
+
+    // Load data on page load
+    loadErpConfigurations();
+    loadMatchingRules();
+</script>
+{% endblock %}

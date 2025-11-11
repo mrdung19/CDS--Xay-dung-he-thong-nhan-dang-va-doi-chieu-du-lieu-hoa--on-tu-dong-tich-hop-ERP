@@ -1,0 +1,238 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - InvoiceFlow{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-semibold text-gray-800">Dashboard</h2>
+        <p class="text-gray-600 mt-1">Tổng quan hệ thống xử lý hóa đơn</p>
+    </div>
+    <a href="{% url 'app_invoices:invoice-list' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+        📄 Tải Hóa Đơn Mới
+    </a>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-indigo-100">
+                <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Tổng số hóa đơn</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-1" id="total_invoices">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Chờ phê duyệt</h3>
+                <p class="text-3xl font-bold text-yellow-500 mt-1" id="pending_approval">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Đã khớp</h3>
+                <p class="text-3xl font-bold text-green-500 mt-1" id="matched_count">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-red-100">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">Lỗi tích hợp</h3>
+                <p class="text-3xl font-bold text-red-500 mt-1" id="integration_errors">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">Thông báo & Nhiệm vụ của tôi</h3>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hóa đơn</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nhiệm vụ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="notification_list" class="bg-white divide-y divide-gray-200">
+                <tr>
+                    <td colspan="5" class="px-6 py-4 whitespace-nowrap text-center text-gray-500">Đang tải thông báo...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Tỷ lệ khớp hóa đơn</h3>
+        <canvas id="matchRateChart" height="200"></canvas>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Thống kê hiệu suất</h3>
+        <div class="space-y-4">
+            <div>
+                <p class="text-2xl font-bold text-blue-600" id="avg_processing_time">0s</p>
+                <p class="text-gray-500 text-sm">Thời gian xử lý trung bình</p>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-green-600" id="total_processed_amount">0đ</p>
+                <p class="text-gray-500 text-sm">Tổng giá trị đã xử lý</p>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-indigo-600" id="auto_matched_count">0</p>
+                <p class="text-gray-500 text-sm">Hóa đơn khớp tự động</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ✅ URL API Dashboard và Tasks
+    const DASHBOARD_API_URL = "{% url 'app_api:api-stats' %}"; 
+    const MY_TASKS_API_URL = "{% url 'app_api:api-tasks-list' %}";
+
+    // ✅ Template link chi tiết hóa đơn
+    const INVOICE_DETAIL_URL_TEMPLATE = "{% url 'app_invoices:invoice-detail' pk=0 %}".replace('0', '__INVOICE_ID__');
+
+    /**
+     * 🧩 Hàm gọi API Dashboard và cập nhật dữ liệu hiển thị
+     */
+    async function fetchDashboardData() {
+        try {
+            const response = await fetch(DASHBOARD_API_URL);
+
+            // Kiểm tra lỗi login hoặc định dạng trả về
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.error("API không trả về JSON. Có thể cần đăng nhập lại.");
+                window.location.href = "{% url 'app_invoices:login' %}?next=" + window.location.pathname;
+                return;
+            }
+
+            if (!response.ok) throw new Error(`Lỗi HTTP ${response.status}`);
+
+            const data = await response.json();
+
+            // ✅ Cập nhật số liệu thống kê
+            document.getElementById('total_invoices').textContent = data.total_invoices?.toLocaleString() || '0';
+            document.getElementById('pending_approval').textContent = data.pending_approval?.toLocaleString() || '0';
+            document.getElementById('matched_count').textContent = data.matched_count?.toLocaleString() || '0';
+            document.getElementById('integration_errors').textContent = data.integration_errors?.toLocaleString() || '0';
+            document.getElementById('avg_processing_time').textContent = data.avg_processing_time || '0s';
+            document.getElementById('auto_matched_count').textContent = data.auto_matched_count?.toLocaleString() || '0';
+
+            const totalAmount = data.total_processed_amount || 0;
+            document.getElementById('total_processed_amount').textContent =
+                totalAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+            // ✅ Cập nhật danh sách nhiệm vụ/thông báo
+            updateNotificationList(data.recent_notifications || []);
+
+        } catch (error) {
+            console.error('❌ Lỗi khi tải dữ liệu Dashboard:', error);
+        }
+    }
+
+    /**
+     * 🧩 Hàm cập nhật danh sách nhiệm vụ/thông báo
+     */
+    function updateNotificationList(notifications) {
+        const notificationList = document.getElementById('notification_list');
+        if (!notificationList) return;
+
+        notificationList.innerHTML = ''; 
+        const totalColumns = 5;
+
+        if (notifications.length > 0) {
+            notifications.forEach(notification => {
+                const invoiceId = notification.invoice?.id ?? 'N/A';
+                const detailUrl = invoiceId !== 'N/A'
+                    ? INVOICE_DETAIL_URL_TEMPLATE.replace('__INVOICE_ID__', invoiceId)
+                    : '#';
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <a href="${detailUrl}" class="text-indigo-600 hover:text-indigo-900">
+                            ${notification.invoice?.invoice_number || 'N/A'}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${notification.task_type_display || notification.action || 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${notification.status || 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        ${notification.created_at_display || 'N/A'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="${detailUrl}" class="text-indigo-600 hover:text-indigo-900">Xem</a>
+                    </td>
+                `;
+                notificationList.appendChild(row);
+            });
+        } else {
+            notificationList.innerHTML = `
+                <tr>
+                    <td colspan="${totalColumns}" class="px-6 py-4 text-center text-sm text-gray-500">
+                        Không có nhiệm vụ hoặc thông báo gần đây.
+                    </td>
+                </tr>`;
+        }
+    }
+
+    /**
+     * 🧠 Hàm này sẽ được gọi khi OCR hoàn tất ở trang khác
+     * (ví dụ: từ trang chi tiết hóa đơn gọi qua window.parent.refreshDashboard())
+     */
+    window.refreshDashboard = async function() {
+        console.log("🔄 Làm mới Dashboard sau khi OCR hoàn tất...");
+        await fetchDashboardData();
+    }
+
+    /**
+     * ⚙️ Tự động tải dữ liệu Dashboard khi trang load
+     */
+    document.addEventListener('DOMContentLoaded', async () => {
+        await fetchDashboardData();
+
+        // ⏱️ (Tùy chọn) Tự động cập nhật mỗi 10 giây
+        setInterval(fetchDashboardData, 10000);
+    });
+
+</script>
+{% endblock %}

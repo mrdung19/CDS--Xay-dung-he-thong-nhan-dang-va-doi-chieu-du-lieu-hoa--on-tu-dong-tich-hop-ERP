@@ -1,0 +1,21 @@
+Django>=4.0
+djangorestframework
+pytesseract
+Pillow
+celery>=5.0
+redis
+requests
+google-cloud-vision   # optional
+django-celery-results  # optional
+
+# AI & Machine Learning
+scikit-learn>=1.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+transformers>=4.30.0
+torch>=2.0.0
+openai>=1.0.0
+langchain>=0.1.0
+langchain-openai>=0.1.0
+sentence-transformers>=2.2.0
+spacy>=3.6.0

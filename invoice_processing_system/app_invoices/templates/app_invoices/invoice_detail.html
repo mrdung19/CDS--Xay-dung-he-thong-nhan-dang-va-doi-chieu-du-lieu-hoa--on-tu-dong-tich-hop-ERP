@@ -1,0 +1,140 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Chi tiết Hóa đơn - {{ invoice.invoice_number }}{% endblock title %}
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">🧾 Chi tiết Hóa đơn</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- CỘT TRÁI: ẢNH HÓA ĐƠN -->
+        <div class="bg-white shadow rounded-lg p-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">📷 Hình ảnh Hóa đơn</h2>
+            {% if invoice.file %}
+                <img id="invoiceImage" src="{{ invoice.file.url }}" alt="Invoice Image" class="rounded-lg shadow max-w-full h-auto">
+            {% else %}
+                <p class="text-gray-500 italic">Không có hình ảnh hóa đơn</p>
+            {% endif %}
+            
+            <p class="mt-3 text-sm text-gray-600">
+                <strong>Trạng thái:</strong> 
+                <span id="currentStatus" class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium">
+                    {{ invoice.get_status_display }}
+                </span><br>
+                <strong>Ngày tải lên:</strong> {{ invoice.uploaded_at|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+
+        <!-- CỘT PHẢI: DỮ LIỆU HÓA ĐƠN -->
+        <div class="bg-white shadow rounded-lg p-4">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">🔎 Dữ liệu Hóa đơn</h2>
+            <div id="ocrDataContainer" class="space-y-4">
+                <div class="text-center py-8 text-gray-500">
+                    <p>Đang tải dữ liệu hóa đơn...</p>
+                </div>
+            </div>
+
+            {% if invoice.raw_ocr_text %}
+            <div class="mt-6 bg-gray-50 p-4 rounded border border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-2">📜 Văn bản OCR (Tesseract)</h3>
+                <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ invoice.raw_ocr_text }}</pre>
+            </div>
+            {% else %}
+            <div class="mt-6 text-gray-500 italic text-sm text-center">Chưa có dữ liệu OCR hiển thị.</div>
+            {% endif %}
+
+            <h2 class="text-lg font-semibold text-gray-700 mt-6 mb-3">🧠 Tác vụ Xử lý</h2>
+            <div class="flex space-x-2">
+                {% csrf_token %}
+                <button type="button" id="runOcrBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm shadow-md">
+                    🔄 Chạy lại OCR
+                </button>
+                <button type="button" id="runMatchBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm shadow-md">
+                    🔗 Khớp/Tạo ERP
+                </button>
+                <button type="button" id="approveBtn" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 text-sm shadow-md">
+                    ✅ Phê duyệt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // đảm bảo luôn dùng invoice.id (không dùng invoice_id nếu bạn chưa truyền)
+    const INVOICE_ID = "{{ invoice.id }}";
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Hàm hữu ích
+    function formatCurrency(value) {
+        if (!value || isNaN(value)) return 'N/A';
+        return parseFloat(value).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    }
+
+    async function fetchInvoiceDetails() {
+        const container = document.getElementById('ocrDataContainer');
+        try {
+            const res = await fetch(`/api/invoices/${INVOICE_ID}/`);
+            if (!res.ok) throw new Error("Lỗi tải dữ liệu hóa đơn.");
+            const data = await res.json();
+            // cập nhật UI (nếu cần)
+            let html = `<div class="bg-gray-100 p-4 rounded-lg">
+                <p><strong>Số hóa đơn:</strong> ${data.invoice_number || 'N/A'}</p>
+                <p><strong>Tổng tiền:</strong> ${formatCurrency(data.total_amount)}</p>
+            </div>`;
+            if (data.raw_ocr_text) {
+                html += `<div class="mt-4 bg-gray-50 p-3 rounded border border-gray-200"><pre class="whitespace-pre-wrap text-sm text-gray-700">${data.raw_ocr_text}</pre></div>`;
+            }
+            container.innerHTML = html;
+        } catch (error) {
+            container.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded">❌ ${error.message}</div>`;
+        }
+    }
+
+    // Chạy lại OCR (gọi endpoint ocr-async)
+    document.getElementById("runOcrBtn").addEventListener("click", async () => {
+        const btn = document.getElementById("runOcrBtn");
+        btn.disabled = true;
+        btn.innerText = "Đang xử lý...";
+        const res = await fetch("/api/ocr-async/", {
+            method: "POST",
+            headers: { "X-CSRFToken": CSRF_TOKEN, "Content-Type": "application/json" },
+            body: JSON.stringify({ invoice_id: INVOICE_ID })
+        });
+        btn.disabled = false;
+        btn.innerText = "🔄 Chạy lại OCR";
+        const data = await res.json().catch(()=>({}));
+        alert(data.message || data.error || (res.ok ? "Yêu cầu OCR đã gửi." : "Lỗi khi gọi OCR."));
+        fetchInvoiceDetails();
+    });
+
+    // Khớp ERP
+    document.getElementById("runMatchBtn").addEventListener("click", async () => {
+        const res = await fetch(`/api/invoices/${INVOICE_ID}/match/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": CSRF_TOKEN },
+        });
+        const data = await res.json().catch(()=>({}));
+        alert(data.message || data.error || (res.ok ? "Đã khớp ERP." : "Lỗi khớp ERP."));
+        fetchInvoiceDetails();
+    });
+
+    // Phê duyệt
+    document.getElementById("approveBtn").addEventListener("click", async () => {
+        const res = await fetch(`/api/invoices/${INVOICE_ID}/approve/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": CSRF_TOKEN },
+        });
+        const data = await res.json().catch(()=>({}));
+        alert(data.message || data.error || (res.ok ? "Đã phê duyệt." : "Lỗi phê duyệt."));
+        fetchInvoiceDetails();
+    });
+
+    // initial load
+    fetchInvoiceDetails();
+    setInterval(fetchInvoiceDetails, 10000);
+</script>
+{% endblock extra_js %}

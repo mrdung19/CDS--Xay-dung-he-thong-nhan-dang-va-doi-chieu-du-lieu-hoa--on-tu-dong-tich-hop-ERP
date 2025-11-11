@@ -1,0 +1,80 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Chi tiết Hóa đơn{% endblock %}
+
+{% block content %}
+<div class="p-6 bg-gray-50 min-h-screen">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">🧾 Chi tiết Hóa đơn</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white shadow rounded-lg p-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">📷 Hình ảnh Hóa đơn</h2>
+            {% if invoice.file %}
+                <img src="{{ invoice.file.url }}" alt="Invoice Image" class="rounded-lg shadow">
+            {% else %}
+                <p class="text-gray-500 italic">Không có hình ảnh hóa đơn</p>
+            {% endif %}
+            <p class="mt-3 text-sm text-gray-600">
+                <strong>Trạng thái:</strong> {{ invoice.get_status_display }} <br>
+                <strong>Ngày tải lên:</strong> {{ invoice.uploaded_at|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+
+        <div class="bg-white shadow rounded-lg p-4">
+            <h2 class="text-lg font-semibold text-gray-700 mb-3">🧠 Kết quả OCR</h2>
+            <form id="ocrForm" class="mb-4">
+                <input type="hidden" name="invoice_id" value="{{ invoice.id }}"> <button type="button" id="runOcrBtn" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                    🔄 Chạy lại OCR
+                </button>
+            </form>
+
+            <script>
+            document.getElementById("runOcrBtn").addEventListener("click", async () => {
+                const invoiceId = document.querySelector("[name='invoice_id']").value;
+                const btn = document.getElementById("runOcrBtn");
+                btn.disabled = true;
+                btn.innerText = "Đang xử lý...";
+                
+                // 🎯 ĐÃ SỬA LỖI URL: Sửa thành /api/ocr-async/ (hoặc /api/ocr-sync/ nếu muốn chạy đồng bộ)
+                const res = await fetch("{% url 'app_api:api-ocr-async' %}", {
+                    method: "POST",
+                    headers: {
+                        // FIX: Lấy CSRF token từ một thẻ input ẩn thay vì dùng template tag trong script
+                        "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value || "{{ csrf_token }}",
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ invoice_id: invoiceId })
+                });
+
+                // Xử lý response
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    // Xử lý trường hợp server không trả về JSON (ví dụ: lỗi 500 HTML)
+                    console.error("Lỗi parse JSON:", e);
+                }
+                
+                if (res.ok) {
+                    alert("✅ Yêu cầu OCR thành công. Hệ thống đang xử lý trong nền.");
+                    // Không cần reload ngay, để người dùng theo dõi trạng thái
+                    // Thay vào đó, bạn có thể tự động làm mới phần trạng thái.
+                    location.reload(); 
+                } else {
+                    alert("❌ Lỗi OCR: " + (data.error || `Lỗi không xác định (${res.status} ${res.statusText})`));
+                    btn.disabled = false;
+                    btn.innerText = "🔄 Chạy lại OCR";
+                }
+            });
+            </script>
+
+            {% if invoice.ocr_text %}
+                <pre class="bg-gray-100 p-3 rounded text-sm text-gray-800 whitespace-pre-line">{{ invoice.ocr_text }}</pre>
+            {% else %}
+                <p class="text-gray-500 italic">Chưa có dữ liệu OCR.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

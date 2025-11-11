@@ -1,0 +1,426 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Phân công Nhiệm vụ - InvoiceFlow{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-semibold text-gray-800">👥 Phân công Nhiệm vụ</h2>
+        <p class="text-gray-600 mt-1">Giao nhiệm vụ cho nhân viên xử lý hóa đơn</p>
+    </div>
+    <button id="createTaskBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+        ➕ Tạo Nhiệm vụ Mới
+    </button>
+</header>
+
+<!-- Task Assignment Form Modal -->
+<div id="taskAssignmentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold" id="modalTitle">Tạo Nhiệm vụ Mới</h3>
+            <button id="closeTaskModalBtn" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="taskAssignmentForm">
+            {% csrf_token %}
+            <input type="hidden" id="taskId" name="id">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Left Column -->
+                <div class="space-y-4">
+                    <div>
+                        <label for="invoiceSelect" class="block text-gray-700 text-sm font-bold mb-2">📄 Chọn Hóa đơn:</label>
+                        <select id="invoiceSelect" name="invoice" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <option value="">-- Chọn hóa đơn --</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="taskType" class="block text-gray-700 text-sm font-bold mb-2">📋 Loại Nhiệm vụ:</label>
+                        <select id="taskType" name="task_type" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <option value="">-- Chọn loại nhiệm vụ --</option>
+                            <option value="OCR_REVIEW">📝 Review OCR</option>
+                            <option value="MATCH_REVIEW">🔍 Review Match</option>
+                            <option value="APPROVAL">✅ Phê duyệt</option>
+                            <option value="FRAUD_CHECK">🕵️ Kiểm tra Fraud</option>
+                            <option value="ERP_SYNC">🔗 Đồng bộ ERP</option>
+                            <option value="MANUAL_REVIEW">👤 Kiểm tra thủ công</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="assignedTo" class="block text-gray-700 text-sm font-bold mb-2">👤 Giao cho:</label>
+                        <select id="assignedTo" name="assigned_to" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <option value="">-- Chọn người thực hiện --</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="priority" class="block text-gray-700 text-sm font-bold mb-2">🔴 Độ ưu tiên:</label>
+                        <select id="priority" name="priority" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <option value="LOW">🟢 Thấp</option>
+                            <option value="MEDIUM" selected>🟡 Trung bình</option>
+                            <option value="HIGH">🔴 Cao</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Right Column -->
+                <div class="space-y-4">
+                    <div>
+                        <label for="dueDate" class="block text-gray-700 text-sm font-bold mb-2">⏰ Thời hạn:</label>
+                        <input type="datetime-local" id="dueDate" name="due_date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    </div>
+                    
+                    <div>
+                        <label for="estimatedTime" class="block text-gray-700 text-sm font-bold mb-2">⏱️ Thời gian ước tính (phút):</label>
+                        <input type="number" id="estimatedTime" name="estimated_time" min="1" max="480" value="30" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    </div>
+                    
+                    <div>
+                        <label for="tags" class="block text-gray-700 text-sm font-bold mb-2">🏷️ Tags:</label>
+                        <input type="text" id="tags" name="tags" placeholder="urgent, review, invoice" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <p class="text-xs text-gray-500 mt-1">Phân cách bằng dấu phẩy</p>
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="notifyAssignee" name="notify_assignee" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                            <span class="ml-2 text-sm text-gray-700">📧 Thông báo cho người được giao</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label for="description" class="block text-gray-700 text-sm font-bold mb-2">📝 Mô tả chi tiết:</label>
+                <textarea id="description" name="description" rows="4" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Mô tả chi tiết về nhiệm vụ, yêu cầu đặc biệt, hướng dẫn thực hiện..."></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelTaskBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded">❌ Hủy</button>
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded">💾 Tạo Nhiệm vụ</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Task Assignment Statistics -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">📊 Tổng nhiệm vụ</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-1" id="totalAssignedTasks">0</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9M21 12a9 9 0 00-9-9"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">⏳ Đang chờ</h3>
+                <p class="text-3xl font-bold text-yellow-500 mt-1" id="pendingAssignedTasks">0</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">✅ Hoàn thành</h3>
+                <p class="text-3xl font-bold text-green-500 mt-1" id="completedAssignedTasks">0</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-red-100">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">⚠️ Quá hạn</h3>
+                <p class="text-3xl font-bold text-red-500 mt-1" id="overdueAssignedTasks">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assigned Tasks List -->
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">📋 Danh sách Nhiệm vụ đã phân công</h3>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📄 Hóa đơn</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📋 Loại</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">👤 Người thực hiện</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⏰ Thời hạn</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🔴 Ưu tiên</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📊 Trạng thái</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚡ Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="assignedTasksList" class="bg-white divide-y divide-gray-200">
+                <tr>
+                    <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Không có nhiệm vụ nào được phân công.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load data
+        loadInvoices();
+        loadUsers();
+        loadAssignedTasks();
+        
+        // Set default due date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('dueDate').value = tomorrow.toISOString().slice(0, 16);
+        
+        // Event listeners
+        document.getElementById('createTaskBtn').addEventListener('click', openTaskModal);
+        document.getElementById('closeTaskModalBtn').addEventListener('click', closeTaskModal);
+        document.getElementById('cancelTaskBtn').addEventListener('click', closeTaskModal);
+        document.getElementById('taskAssignmentForm').addEventListener('submit', handleTaskSubmit);
+    });
+    
+    function openTaskModal() {
+        document.getElementById('taskAssignmentModal').classList.remove('hidden');
+        document.getElementById('taskAssignmentModal').classList.add('flex');
+    }
+    
+    function closeTaskModal() {
+        document.getElementById('taskAssignmentModal').classList.add('hidden');
+        document.getElementById('taskAssignmentModal').classList.remove('flex');
+        document.getElementById('taskAssignmentForm').reset();
+    }
+    
+    async function loadInvoices() {
+        try {
+            const response = await fetch('/api/invoices/');
+            const data = await response.json();
+            
+            const select = document.getElementById('invoiceSelect');
+            select.innerHTML = '<option value="">-- Chọn hóa đơn --</option>';
+            
+            if (data.results) {
+                data.results.forEach(invoice => {
+                    const option = document.createElement('option');
+                    option.value = invoice.id;
+                    option.textContent = `#${invoice.id} - ${invoice.invoice_number || 'Chưa có số'} (${invoice.status})`;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading invoices:', error);
+        }
+    }
+    
+    async function loadUsers() {
+        try {
+            // This would typically come from a users API
+            const users = [
+                { id: 1, username: 'admin', full_name: 'Administrator' },
+                { id: 2, username: 'user1', full_name: 'Nguyễn Văn A' },
+                { id: 3, username: 'user2', full_name: 'Trần Thị B' },
+                { id: 4, username: 'user3', full_name: 'Lê Văn C' }
+            ];
+            
+            const select = document.getElementById('assignedTo');
+            select.innerHTML = '<option value="">-- Chọn người thực hiện --</option>';
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.full_name} (${user.username})`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    }
+    
+    async function loadAssignedTasks() {
+        try {
+            const response = await fetch('/api/tasks/');
+            const data = await response.json();
+            
+            updateTaskStatistics(data.results || []);
+            displayAssignedTasks(data.results || []);
+        } catch (error) {
+            console.error('Error loading assigned tasks:', error);
+        }
+    }
+    
+    function updateTaskStatistics(tasks) {
+        document.getElementById('totalAssignedTasks').textContent = tasks.length;
+        document.getElementById('pendingAssignedTasks').textContent = tasks.filter(t => t.status === 'PENDING').length;
+        document.getElementById('completedAssignedTasks').textContent = tasks.filter(t => t.status === 'COMPLETED').length;
+        document.getElementById('overdueAssignedTasks').textContent = tasks.filter(t => t.status === 'OVERDUE').length;
+    }
+    
+    function displayAssignedTasks(tasks) {
+        const tbody = document.getElementById('assignedTasksList');
+        tbody.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Không có nhiệm vụ nào được phân công.</td></tr>';
+            return;
+        }
+        
+        tasks.forEach(task => {
+            const row = document.createElement('tr');
+            
+            // Status styling
+            let statusClass = '';
+            let statusText = '';
+            switch (task.status) {
+                case 'PENDING':
+                    statusClass = 'bg-yellow-100 text-yellow-800';
+                    statusText = 'Đang chờ';
+                    break;
+                case 'IN_PROGRESS':
+                    statusClass = 'bg-blue-100 text-blue-800';
+                    statusText = 'Đang làm';
+                    break;
+                case 'COMPLETED':
+                    statusClass = 'bg-green-100 text-green-800';
+                    statusText = 'Hoàn thành';
+                    break;
+                case 'OVERDUE':
+                    statusClass = 'bg-red-100 text-red-800';
+                    statusText = 'Quá hạn';
+                    break;
+                default:
+                    statusClass = 'bg-gray-100 text-gray-800';
+                    statusText = 'Không rõ';
+            }
+            
+            // Priority styling
+            let priorityClass = '';
+            let priorityText = '';
+            switch (task.priority) {
+                case 'HIGH':
+                    priorityClass = 'bg-red-100 text-red-800';
+                    priorityText = '🔴 Cao';
+                    break;
+                case 'MEDIUM':
+                    priorityClass = 'bg-yellow-100 text-yellow-800';
+                    priorityText = '🟡 Trung bình';
+                    break;
+                case 'LOW':
+                    priorityClass = 'bg-green-100 text-green-800';
+                    priorityText = '🟢 Thấp';
+                    break;
+            }
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                    <a href="/invoices/${task.invoice}/detail/">#${task.invoice}</a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${task.task_type}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${task.assigned_to_username || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(task.due_date).toLocaleDateString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${priorityClass}">
+                        ${priorityText}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="editTask(${task.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">Sửa</button>
+                    <button onclick="deleteTask(${task.id})" class="text-red-600 hover:text-red-900">Xóa</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    async function handleTaskSubmit(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const taskData = {
+            invoice: formData.get('invoice'),
+            task_type: formData.get('task_type'),
+            assigned_to: formData.get('assigned_to'),
+            priority: formData.get('priority'),
+            due_date: formData.get('due_date'),
+            estimated_time: formData.get('estimated_time'),
+            tags: formData.get('tags'),
+            description: formData.get('description'),
+            notify_assignee: formData.get('notify_assignee') === 'on'
+        };
+        
+        try {
+            const response = await fetch('/api/tasks/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(taskData)
+            });
+            
+            if (response.ok) {
+                alert('✅ Nhiệm vụ đã được tạo thành công!');
+                closeTaskModal();
+                loadAssignedTasks();
+            } else {
+                const error = await response.json();
+                alert('❌ Lỗi: ' + (error.detail || 'Không thể tạo nhiệm vụ'));
+            }
+        } catch (error) {
+            console.error('Error creating task:', error);
+            alert('❌ Lỗi mạng: ' + error.message);
+        }
+    }
+    
+    function editTask(taskId) {
+        alert('Chức năng sửa nhiệm vụ sẽ được phát triển');
+    }
+    
+    function deleteTask(taskId) {
+        if (confirm('Bạn có chắc muốn xóa nhiệm vụ này?')) {
+            alert('Chức năng xóa nhiệm vụ sẽ được phát triển');
+        }
+    }
+</script>
+{% endblock %}
+

@@ -1,0 +1,286 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}Nhiệm vụ - InvoiceFlow{% endblock %}
+
+{% block content %}
+<header class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-semibold text-gray-800">📋 Nhiệm vụ của tôi</h2>
+        <p class="text-gray-600 mt-1">Quản lý các nhiệm vụ được giao</p>
+    </div>
+</header>
+
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">🔍 Bộ lọc nhiệm vụ nâng cao</h3>
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div>
+            <label for="taskStatusFilter" class="block text-gray-700 text-sm font-bold mb-2">Trạng thái:</label>
+            <select id="taskStatusFilter" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">Tất cả trạng thái</option>
+                <option value="PENDING">🟡 Đang chờ</option>
+                <option value="IN_PROGRESS">🔵 Đang thực hiện</option>
+                <option value="COMPLETED">🟢 Hoàn thành</option>
+                <option value="OVERDUE">🔴 Quá hạn</option>
+                <option value="CANCELLED">⚫ Đã hủy</option>
+            </select>
+        </div>
+        <div>
+            <label for="taskTypeFilter" class="block text-gray-700 text-sm font-bold mb-2">Loại nhiệm vụ:</label>
+            <select id="taskTypeFilter" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">Tất cả loại</option>
+                <option value="OCR_REVIEW">📝 Review OCR</option>
+                <option value="MATCH_REVIEW">🔍 Review Match</option>
+                <option value="APPROVAL">✅ Phê duyệt</option>
+                <option value="FRAUD_CHECK">🕵️ Kiểm tra Fraud</option>
+                <option value="ERP_SYNC">🔗 Đồng bộ ERP</option>
+                <option value="MANUAL_REVIEW">👤 Kiểm tra thủ công</option>
+            </select>
+        </div>
+        <div>
+            <label for="priorityFilter" class="block text-gray-700 text-sm font-bold mb-2">Độ ưu tiên:</label>
+            <select id="priorityFilter" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="">Tất cả độ ưu tiên</option>
+                <option value="HIGH">🔴 Cao</option>
+                <option value="MEDIUM">🟡 Trung bình</option>
+                <option value="LOW">🟢 Thấp</option>
+            </select>
+        </div>
+        <div>
+            <label for="dateRange" class="block text-gray-700 text-sm font-bold mb-2">Thời gian:</label>
+            <select id="dateRange" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <option value="all">Tất cả thời gian</option>
+                <option value="today">📅 Hôm nay</option>
+                <option value="tomorrow">📅 Ngày mai</option>
+                <option value="week">📅 Tuần này</option>
+                <option value="month">📅 Tháng này</option>
+                <option value="overdue">⚠️ Quá hạn</option>
+            </select>
+        </div>
+        <div class="flex items-end space-x-2">
+            <button id="applyTaskFilters" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-md shadow-md">
+                🔍 Áp dụng
+            </button>
+            <button id="clearTaskFilters" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md shadow-md">
+                🗑️ Xóa bộ lọc
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Task Statistics -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">📊 Tổng nhiệm vụ</h3>
+                <p class="text-3xl font-bold text-gray-900 mt-1" id="totalTasks">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9M21 12a9 9 0 00-9-9"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">⏳ Đang chờ xử lý</h3>
+                <p class="text-3xl font-bold text-yellow-500 mt-1" id="pendingTasks">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">✅ Đã hoàn thành</h3>
+                <p class="text-3xl font-bold text-green-500 mt-1" id="completedTasks">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-red-100">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-gray-500 text-sm font-medium">⚠️ Quá hạn</h3>
+                <p class="text-3xl font-bold text-red-500 mt-1" id="overdueTasks">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="bg-white p-6 rounded-lg shadow-md mb-8">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">⚡ Hành động nhanh</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <button id="bulkCompleteBtn" class="bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-md shadow-md flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Hoàn thành hàng loạt
+        </button>
+        <button id="assignTasksBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md shadow-md flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+            </svg>
+            Phân công nhiệm vụ
+        </button>
+        <button id="exportTasksBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-md shadow-md flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Xuất báo cáo
+        </button>
+        <button id="refreshTasksBtn" class="bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-md shadow-md flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Làm mới
+        </button>
+    </div>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-md">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">Danh sách Nhiệm vụ</h3>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="selectAllTasks" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📄 Hóa đơn</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📋 Loại Nhiệm vụ</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⏰ Thời hạn</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">👤 Người giao</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">🔴 Độ ưu tiên</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">📊 Trạng thái</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">⚡ Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="taskListBody" class="bg-white divide-y divide-gray-200">
+                <tr>
+                    <td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Không có nhiệm vụ nào được tìm thấy.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Định nghĩa URL chi tiết hóa đơn (sử dụng placeholder)
+        const INVOICE_DETAIL_URL_TEMPLATE = "/invoices/__INVOICE_ID__/detail/"; // Thay thế cứng nếu không có tên URL
+        
+        const fetchTasks = async (filters = {}) => {
+            // Lấy URL API từ template (đường dẫn đã được sửa lỗi)
+            const apiUrl = "{% url 'api-tasks-list' %}"; // Tên route tasks list API từ router
+            // Xây dựng chuỗi truy vấn (query string)
+            const queryString = new URLSearchParams(filters).toString();
+            
+            try {
+                const response = await fetch(`${apiUrl}?${queryString}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                // Cập nhật số liệu thống kê
+                document.getElementById('totalTasks').textContent = data.length;
+                document.getElementById('pendingTasks').textContent = data.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length;
+                document.getElementById('completedTasks').textContent = data.filter(t => t.status === 'COMPLETED').length;
+                
+                // Hiển thị danh sách nhiệm vụ
+                const taskListBody = document.getElementById('taskListBody');
+                taskListBody.innerHTML = ''; // Xóa nội dung cũ
+
+                if (data.length === 0) {
+                    taskListBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Không có nhiệm vụ nào được tìm thấy.</td></tr>';
+                    return;
+                }
+
+                data.forEach(task => {
+                    const row = document.createElement('tr');
+                    
+                    // Tạo màu sắc cho trạng thái
+                    let statusClass = '';
+                    let statusText = '';
+                    switch (task.status) {
+                        case 'PENDING':
+                            statusClass = 'bg-yellow-100 text-yellow-800';
+                            statusText = 'Đang chờ';
+                            break;
+                        case 'IN_PROGRESS':
+                            statusClass = 'bg-blue-100 text-blue-800';
+                            statusText = 'Đang làm';
+                            break;
+                        case 'COMPLETED':
+                            statusClass = 'bg-green-100 text-green-800';
+                            statusText = 'Hoàn thành';
+                            break;
+                        default:
+                            statusClass = 'bg-gray-100 text-gray-800';
+                            statusText = 'Không rõ';
+                    }
+                    
+                    // Tạo URL chi tiết
+                    const detailUrl = INVOICE_DETAIL_URL_TEMPLATE.replace('__INVOICE_ID__', task.invoice);
+
+
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                            <a href="${detailUrl}">${task.invoice}</a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${task.task_type}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(task.assigned_at).toLocaleDateString()}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${task.assigned_to_username}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="${detailUrl}" class="text-indigo-600 hover:text-indigo-900">Xem/Xử lý</a>
+                        </td>
+                    `;
+                    taskListBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Lỗi khi tải danh sách nhiệm vụ:', error);
+                document.getElementById('taskListBody').innerHTML = '<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-red-500 text-center">Lỗi khi tải dữ liệu. Vui lòng thử lại.</td></tr>';
+            }
+        };
+
+        // Lắng nghe sự kiện click áp dụng bộ lọc
+        document.getElementById('applyTaskFilters').addEventListener('click', function() {
+            const status = document.getElementById('taskStatusFilter').value;
+            const type = document.getElementById('taskTypeFilter').value;
+            // dateRange sẽ cần logic phức tạp hơn, tạm thời bỏ qua
+            
+            const filters = {};
+            if (status) filters.status = status;
+            if (type) filters.task_type = type;
+
+            fetchTasks(filters);
+        });
+
+        // Tải nhiệm vụ lần đầu
+        fetchTasks();
+    });
+</script>
+{% endblock content %}

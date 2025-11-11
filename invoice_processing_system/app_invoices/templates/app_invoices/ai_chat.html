@@ -1,0 +1,272 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}AI Chat Assistant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: 70vh;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .chat-messages {
+        height: calc(100% - 60px);
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+    }
+    
+    .message {
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        border-radius: 15px;
+        max-width: 80%;
+        word-wrap: break-word;
+    }
+    
+    .message.user {
+        background: #007bff;
+        color: white;
+        margin-left: auto;
+        text-align: right;
+    }
+    
+    .message.ai {
+        background: white;
+        border: 1px solid #ddd;
+        margin-right: auto;
+    }
+    
+    .message.system {
+        background: #e9ecef;
+        color: #6c757d;
+        text-align: center;
+        font-style: italic;
+        margin: 0 auto;
+    }
+    
+    .chat-input {
+        height: 60px;
+        border-top: 1px solid #ddd;
+        padding: 10px;
+        background: white;
+    }
+    
+    .ai-status {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .ai-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .feature-card {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .typing-indicator {
+        display: none;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .typing-indicator.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">🤖 AI Chat Assistant</h2>
+            
+            <!-- AI Status -->
+            <div class="ai-status">
+                <h4>🧠 AI Assistant đang hoạt động</h4>
+                <p class="mb-0">Tôi có thể giúp bạn về trạng thái hóa đơn, hướng dẫn sử dụng hệ thống, và phân tích dữ liệu.</p>
+            </div>
+            
+            <!-- AI Features -->
+            <div class="ai-features">
+                <div class="feature-card">
+                    <h6>📊 Phân tích hóa đơn</h6>
+                    <small>Hỏi về trạng thái, phân loại, rủi ro fraud</small>
+                </div>
+                <div class="feature-card">
+                    <h6>🔍 Hướng dẫn sử dụng</h6>
+                    <small>Giải thích cách upload, phê duyệt, báo cáo</small>
+                </div>
+                <div class="feature-card">
+                    <h6>📈 Thống kê & Báo cáo</h6>
+                    <small>Phân tích hiệu suất, tỷ lệ khớp, xu hướng</small>
+                </div>
+                <div class="feature-card">
+                    <h6>🛠️ Khắc phục sự cố</h6>
+                    <small>Giải quyết lỗi OCR, tích hợp ERP</small>
+                </div>
+            </div>
+            
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message system">
+                        👋 Xin chào! Tôi là AI Assistant của hệ thống xử lý hóa đơn. Bạn cần hỗ trợ gì?
+                    </div>
+                </div>
+                
+                <div class="chat-input">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="messageInput" placeholder="Nhập câu hỏi của bạn..." onkeypress="handleKeyPress(event)">
+                        <button class="btn btn-primary" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i> Gửi
+                        </button>
+                    </div>
+                    <div class="typing-indicator" id="typingIndicator">
+                        AI đang suy nghĩ...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let sessionId = null;
+
+// Khởi tạo session
+function initSession() {
+    if (!sessionId) {
+        sessionId = generateSessionId();
+    }
+}
+
+// Tạo session ID
+function generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Gửi tin nhắn
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Thêm tin nhắn người dùng vào chat
+    addMessage('user', message);
+    input.value = '';
+    
+    // Hiển thị typing indicator
+    showTypingIndicator();
+    
+    try {
+        const response = await fetch('/api/ai/chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: message,
+                session_id: sessionId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Ẩn typing indicator
+            hideTypingIndicator();
+            
+            // Thêm phản hồi AI
+            addMessage('ai', data.response);
+            
+            // Cập nhật session ID
+            if (data.session_id) {
+                sessionId = data.session_id;
+            }
+        } else {
+            hideTypingIndicator();
+            addMessage('system', '❌ Lỗi: ' + data.error);
+        }
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage('system', '❌ Lỗi kết nối: ' + error.message);
+    }
+}
+
+// Thêm tin nhắn vào chat
+function addMessage(type, content) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    messageDiv.textContent = content;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Hiển thị typing indicator
+function showTypingIndicator() {
+    document.getElementById('typingIndicator').classList.add('show');
+}
+
+// Ẩn typing indicator
+function hideTypingIndicator() {
+    document.getElementById('typingIndicator').classList.remove('show');
+}
+
+// Xử lý phím Enter
+function handleKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendMessage();
+    }
+}
+
+// Lấy CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Khởi tạo khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    initSession();
+    
+    // Focus vào input
+    document.getElementById('messageInput').focus();
+    
+    // Thêm một số câu hỏi mẫu
+    addMessage('system', '💡 Bạn có thể hỏi: "Trạng thái hóa đơn ID 1", "Hướng dẫn upload hóa đơn", "Báo cáo thống kê"');
+});
+</script>
+{% endblock %}
+

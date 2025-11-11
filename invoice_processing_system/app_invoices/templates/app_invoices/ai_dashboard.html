@@ -1,0 +1,398 @@
+{% extends 'app_invoices/base.html' %}
+{% load static %}
+
+{% block title %}AI Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ai-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .ai-stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #007bff;
+    }
+    
+    .ai-stat-card.success {
+        border-left-color: #28a745;
+    }
+    
+    .ai-stat-card.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .ai-stat-card.danger {
+        border-left-color: #dc3545;
+    }
+    
+    .ai-chart {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .ai-model-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .ai-model-card.active {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+    
+    .progress-ring {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto;
+    }
+    
+    .progress-ring circle {
+        fill: transparent;
+        stroke: #007bff;
+        stroke-width: 8;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+    
+    .ai-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .feature-item {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+    }
+    
+    .ai-recommendation {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .ai-recommendation.high {
+        background: #f8d7da;
+        border-color: #f5c6cb;
+    }
+    
+    .ai-recommendation.medium {
+        background: #fff3cd;
+        border-color: #ffeaa7;
+    }
+    
+    .ai-recommendation.low {
+        background: #d1ecf1;
+        border-color: #bee5eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">🤖 AI Dashboard</h2>
+            
+            <!-- AI Overview Card -->
+            <div class="ai-card">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4>🧠 AI Processing System</h4>
+                        <p class="mb-0">Hệ thống AI đang xử lý và phân tích hóa đơn tự động với độ chính xác cao.</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="progress-ring">
+                            <svg width="80" height="80">
+                                <circle cx="40" cy="40" r="32" stroke="#e9ecef" stroke-width="8"/>
+                                <circle cx="40" cy="40" r="32" stroke="#28a745" stroke-width="8" 
+                                        stroke-dasharray="201" stroke-dashoffset="40" id="aiProgress"/>
+                            </svg>
+                        </div>
+                        <div class="mt-2">
+                            <strong id="aiAccuracy">85%</strong><br>
+                            <small>Độ chính xác AI</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Statistics -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="ai-stat-card success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Hóa đơn đã xử lý AI</h6>
+                                <h3 class="mb-0" id="aiProcessed">0</h3>
+                            </div>
+                            <div class="text-success">
+                                <i class="fas fa-robot fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="ai-stat-card warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Fraud được phát hiện</h6>
+                                <h3 class="mb-0" id="fraudDetected">0</h3>
+                            </div>
+                            <div class="text-warning">
+                                <i class="fas fa-shield-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="ai-stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Độ tin cậy cao</h6>
+                                <h3 class="mb-0" id="highConfidence">0</h3>
+                            </div>
+                            <div class="text-primary">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="ai-stat-card danger">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Tỷ lệ xử lý AI</h6>
+                                <h3 class="mb-0" id="aiProcessingRate">0%</h3>
+                            </div>
+                            <div class="text-danger">
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Features -->
+            <div class="ai-feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <h5>Phân loại thông minh</h5>
+                    <p class="text-muted">AI tự động phân loại hóa đơn theo loại dịch vụ</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">🕵️</div>
+                    <h5>Phát hiện fraud</h5>
+                    <p class="text-muted">Phát hiện hóa đơn giả và bất thường</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <h5>Trích xuất dữ liệu</h5>
+                    <p class="text-muted">Trích xuất thông tin quan trọng từ OCR</p>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="feature-icon">🔮</div>
+                    <h5>Dự đoán thông minh</h5>
+                    <p class="text-muted">Dự đoán thời gian xử lý và khả năng phê duyệt</p>
+                </div>
+            </div>
+            
+            <!-- AI Models Performance -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="ai-chart">
+                        <h5>📈 Hiệu suất AI Models</h5>
+                        <div id="modelPerformance">
+                            <!-- Sẽ được load bằng JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="ai-chart">
+                        <h5>📊 Phân loại hóa đơn</h5>
+                        <div id="categoryDistribution">
+                            <!-- Sẽ được load bằng JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Recommendations -->
+            <div class="ai-chart">
+                <h5>💡 Khuyến nghị AI</h5>
+                <div id="aiRecommendations">
+                    <div class="ai-recommendation medium">
+                        <strong>🎯 Cải thiện độ chính xác OCR</strong>
+                        <p class="mb-0">Upload ảnh hóa đơn với độ phân giải cao và ánh sáng tốt để tăng độ chính xác AI.</p>
+                    </div>
+                    
+                    <div class="ai-recommendation low">
+                        <strong>📈 Huấn luyện model mới</strong>
+                        <p class="mb-0">Thêm dữ liệu huấn luyện để cải thiện khả năng phân loại của AI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Load AI Dashboard data
+async function loadAIDashboard() {
+    try {
+        const response = await fetch('/api/ai/dashboard/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            updateAIDashboard(data);
+        } else {
+            console.error('Lỗi load AI dashboard:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Lỗi kết nối AI dashboard:', error);
+    }
+}
+
+// Update AI Dashboard với dữ liệu
+function updateAIDashboard(data) {
+    // Cập nhật thống kê
+    document.getElementById('aiProcessed').textContent = data.ai_stats.ai_processed;
+    document.getElementById('fraudDetected').textContent = data.ai_stats.fraud_detected;
+    document.getElementById('highConfidence').textContent = data.ai_stats.high_confidence;
+    document.getElementById('aiProcessingRate').textContent = data.ai_stats.ai_processing_rate + '%';
+    
+    // Cập nhật độ chính xác AI
+    const avgAccuracy = data.model_performance.length > 0 
+        ? data.model_performance.reduce((sum, model) => sum + model.accuracy, 0) / data.model_performance.length 
+        : 85;
+    document.getElementById('aiAccuracy').textContent = Math.round(avgAccuracy) + '%';
+    
+    // Cập nhật progress ring
+    updateProgressRing(avgAccuracy);
+    
+    // Cập nhật model performance
+    updateModelPerformance(data.model_performance);
+    
+    // Cập nhật category distribution
+    updateCategoryDistribution(data.categories);
+}
+
+// Cập nhật progress ring
+function updateProgressRing(percentage) {
+    const circle = document.getElementById('aiProgress');
+    const circumference = 2 * Math.PI * 32;
+    const offset = circumference - (percentage / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+}
+
+// Cập nhật hiệu suất model
+function updateModelPerformance(models) {
+    const container = document.getElementById('modelPerformance');
+    container.innerHTML = '';
+    
+    models.forEach(model => {
+        const modelCard = document.createElement('div');
+        modelCard.className = 'ai-model-card';
+        if (model.accuracy > 80) modelCard.classList.add('active');
+        
+        modelCard.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">${model.name}</h6>
+                    <small class="text-muted">${model.type}</small>
+                </div>
+                <div class="text-right">
+                    <strong>${Math.round(model.accuracy)}%</strong><br>
+                    <small class="text-muted">Độ chính xác</small>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(modelCard);
+    });
+}
+
+// Cập nhật phân phối category
+function updateCategoryDistribution(categories) {
+    const container = document.getElementById('categoryDistribution');
+    container.innerHTML = '';
+    
+    categories.forEach(category => {
+        const categoryItem = document.createElement('div');
+        categoryItem.className = 'd-flex justify-content-between align-items-center mb-2';
+        categoryItem.innerHTML = `
+            <span>${category.ai_category || 'Chưa phân loại'}</span>
+            <span class="badge badge-primary">${category.count}</span>
+        `;
+        container.appendChild(categoryItem);
+    });
+}
+
+// Lấy CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Khởi tạo khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAIDashboard();
+    
+    // Refresh data mỗi 30 giây
+    setInterval(loadAIDashboard, 30000);
+});
+</script>
+{% endblock %}
+

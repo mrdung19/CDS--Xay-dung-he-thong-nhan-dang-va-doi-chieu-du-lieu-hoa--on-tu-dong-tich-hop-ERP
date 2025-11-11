@@ -150,5 +150,19 @@ Truy cập trình duyệt:
 [python manage.py runserver](http://127.0.0.1:8000)
 ```
 # 📝 5. Một số hình ảnh giao diện
+### Hình 1: Giao diện chính
+![Login Screen](anh9.jpg)
+### Hình 2: Giao diện tải hóa đơn
+![Login Screen](anh10.jpg)
+### Hình 3: Giao diện OCR
+![Login Screen](anh11.jpg)
+### Hình 4: Giao diện báo cáo và phân tích
+![Login Screen](anh12.jpg)
+## 5. Liên Hệ
+Họ tên: Nguyễn Tiến Dũng
 
+Lớp: CNTT16-01
 
+Email: dungnguyen190224@gmail.com
+
+Zalo: 0987047451
